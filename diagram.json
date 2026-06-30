@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "author": "kelompok 2 smartcat feeder",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 105.6, "left": -110.36, "attrs": {} },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "ultrasonic1",
+      "top": -27.3,
+      "left": -148.1,
+      "attrs": { "distance": "13" }
+    },
+    { "type": "wokwi-servo", "id": "servo1", "top": 142, "left": 86.4, "attrs": {} },
+    {
+      "type": "wokwi-hx711",
+      "id": "cell1",
+      "top": 377,
+      "left": -93.4,
+      "attrs": { "type": "5kg" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "servo1:GND", "esp:GND.2", "#8f4814", [ "h-38.4", "v-67.2" ] ],
+    [ "esp:18", "servo1:PWM", "orange", [ "h19.2", "v9.6" ] ],
+    [ "servo1:V+", "esp:3V3", "red", [ "h-48", "v-105.5", "h-134.55" ] ],
+    [ "ultrasonic1:VCC", "esp:5V", "red", [ "v19.2", "h-48", "v220.8" ] ],
+    [ "ultrasonic1:TRIG", "esp:5", "gold", [ "v9.6", "h86", "v144" ] ],
+    [ "ultrasonic1:ECHO", "esp:19", "violet", [ "v19.2", "h66.4", "v115.2" ] ],
+    [ "ultrasonic1:GND", "esp:GND.2", "black", [ "v19.2", "h37.2" ] ],
+    [ "cell1:VCC", "esp:3V3", "red", [ "h-86.4", "v-201.6" ] ],
+    [ "cell1:DT", "esp:16", "purple", [ "h-28.8", "v-58.1", "h124.8", "v-115.2" ] ],
+    [ "cell1:SCK", "esp:17", "gray", [ "h-38.4", "v-87.2", "h144", "v-105.6" ] ],
+    [ "cell1:GND", "esp:GND.2", "black", [ "h-19.2", "v-38.7", "h134.4", "v-230.4" ] ]
+  ],
+  "dependencies": {}
+}
