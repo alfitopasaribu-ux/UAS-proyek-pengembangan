@@ -1,0 +1,10 @@
+# Wokwi Library List
+# See https://docs.wokwi.com/guides/libraries
+
+ESPPubSubClientWrapper
+PubSubClient
+MQTTPubSubClient
+ESP32Servo
+HX711
+7Semi_HX711
+ArduinoJson
