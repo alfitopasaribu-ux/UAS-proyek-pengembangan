@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Cat Feeder Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.2em;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1em;
+        }
+
+        .main-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            background: #fafafa;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #999;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+        }
+
+        .status-text {
+            font-weight: 500;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .status-text.connected {
+            color: #10b981;
+        }
+
+        .status-info {
+            font-size: 0.8em;
+            color: #999;
+            font-family: 'Courier New', monospace;
+        }
+
+        .config-section {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 0.85em;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+            background: white;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #888;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .input-group input:disabled {
+            background: #f0f0f0;
+            cursor: not-allowed;
+            color: #999;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #333;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-disconnect {
+            background: #dc2626;
+        }
+
+        .btn-disconnect:hover:not(:disabled) {
+            background: #b91c1c;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e5e5e5;
+            margin: 24px 0;
+        }
+
+        .section-title {
+            color: #333;
+            margin-bottom: 16px;
+            font-weight: 600;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e5e5e5;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .stat-card.primary {
+            background: #f3f4f6;
+            border: 2px solid #d1d5db;
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .stat-icon {
+            font-size: 1.6em;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 600;
+            color: #333;
+            line-height: 1;
+        }
+
+        .stat-value .unit {
+            font-size: 0.5em;
+            color: #999;
+            font-weight: 500;
+            margin-left: 4px;
+        }
+
+        .control-section {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .control-title {
+            font-size: 1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .control-btn {
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            background: #555;
+            color: white;
+        }
+
+        .control-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            background: #333;
+        }
+
+        .control-btn .icon {
+            font-size: 1.8em;
+        }
+
+        .portion-control {
+            margin-bottom: 18px;
+        }
+
+        .portion-label {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+        }
+
+        .portion-slider {
+            width: 100%;
+            height: 5px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .portion-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #555;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .portion-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #333;
+        }
+
+        .portion-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #555;
+            cursor: pointer;
+            border: none;
+        }
+
+        .portion-value {
+            text-align: center;
+            font-size: 1.6em;
+            font-weight: 600;
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .schedule-section {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .schedule-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+
+        .schedule-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .schedule-item {
+            background: white;
+            padding: 14px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e5e5e5;
+            transition: all 0.2s;
+        }
+
+        .schedule-item:hover {
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        .schedule-info {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .schedule-time {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .schedule-portion {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .btn-delete {
+            padding: 7px 14px;
+            background: #fee;
+            color: #c00;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            font-size: 0.8em;
+        }
+
+        .btn-delete:hover {
+            background: #fdd;
+        }
+
+        .btn-add {
+            padding: 11px 20px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+
+        .btn-add:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-add:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .log-section {
+            background: #fafafa;
+            padding: 18px;
+            border-radius: 10px;
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid #e5e5e5;
+        }
+
+        .log-title {
+            font-size: 1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-entry {
+            padding: 9px 11px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 7px;
+            border-left: 3px solid #e5e5e5;
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 0.8em;
+            line-height: 1.4;
+        }
+
+        .log-entry.success {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .log-entry.error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .log-entry.info {
+            border-left-color: #3b82f6;
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .log-entry.warning {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .log-time {
+            color: #999;
+            margin-right: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-size: 0.85em;
+        }
+
+        .info-badge {
+            display: inline-block;
+            background: #f0fdf4;
+            color: #166534;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .log-section::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .log-section::-webkit-scrollbar-track {
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+
+        .log-section::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        .log-section::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            .main-panel {
+                padding: 20px;
+            }
+            .schedule-form {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Smart Cat Feeder</h1>
+        </div>
+        
+        <div class="main-panel">
+            <!-- Connection Status -->
+            <div class="connection-status">
+                <div class="status-left">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span class="status-text" id="statusText">Disconnected</span>
+                </div>
+                <div class="status-info" id="clientInfo">Not connected</div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="config-section">
+                <div class="input-group">
+                    <label>Unique Prefix</label>
+                    <input type="text" id="uniquePrefix" value="Kelompok2" placeholder="Example: CatFeeder01">
+                </div>
+
+                <button class="btn-primary" id="connectBtn" onclick="toggleConnection()">
+                    Connect to MQTT
+                </button>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Statistics -->
+            <h2 class="section-title">
+                <span></span>
+                <span>Statistics</span>
+            </h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card primary">
+                    <div class="stat-header">
+                        <div class="stat-icon"></div>
+                        <div class="stat-label">Bowl Weight</div>
+                    </div>
+                    <div class="stat-value"><span id="bowlWeight">--</span><span class="unit">g</span></div>
+                    <div class="info-badge">Real-time</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon"></div>
+                        <div class="stat-label">Food Level (Container)</div>
+                    </div>
+                    <div class="stat-value"><span id="foodLevel">--</span><span class="unit">%</span></div>
+                </div>
+            </div>
+
+            <!-- Feeding Schedule -->
+            <div class="schedule-section">
+                <div class="control-title">
+                    <span></span>
+                    <span>Feeding Schedule</span>
+                </div>
+
+                <div class="schedule-form">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Time</label>
+                        <input type="time" id="scheduleTime" value="08:00">
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Portions</label>
+                        <select id="schedulePortion">
+                            <option value="1">1 portion</option>
+                            <option value="2" selected>2 portions</option>
+                            <option value="3">3 portions</option>
+                            <option value="4">4 portions</option>
+                            <option value="5">5 portions</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-add" onclick="addSchedule()" id="addScheduleBtn" disabled>
+                        Add
+                    </button>
+                </div>
+
+                <div class="schedule-list" id="scheduleList">
+                    <p class="empty-state">No schedules yet. Add one above!</p>
+                </div>
+            </div>
+
+            <!-- Manual Control -->
+            <div class="control-section">
+                <div class="control-title">
+                    <span></span>
+                    <span>Manual Feeding Control</span>
+                </div>
+
+                <!-- Portion Control -->
+                <div class="portion-control">
+                    <div class="portion-label">Select Portion Size:</div>
+                    <input type="range" class="portion-slider" id="portionSlider" 
+                           min="1" max="5" value="2" 
+                           oninput="updatePortion()">
+                    <div class="portion-value">
+                        <span id="portionValue">2</span> portions
+                    </div>
+                </div>
+
+                <div class="control-grid">
+                    <button class="control-btn feed" onclick="feedNow()" id="feedBtn" disabled>
+                        <span class="icon"></span>
+                        <span>Feed Now</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="log-section">
+                <div class="log-title">
+                    <span></span>
+                    <span>Activity Log</span>
+                </div>
+                <div id="logMessages"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // MQTT Configuration
+        const config = {
+            host: "broker.emqx.io",
+            port: 8084,
+            useTLS: true,
+            cleansession: true,
+            uniquePrefix: "Kelompok2",
+            topics: {
+                foodLevel: "",
+                feedNow: "",
+                portion: "",
+                bowlWeight: "",
+                schedule: "",
+                currentTime: ""
+            },
+            clientId: ""
+        };
+
+        let schedules = [];
+
+        class MQTTClient {
+            constructor(config) {
+                this.config = config;
+                this.client = null;
+                this.isConnected = false;
+                this.callbacks = { onConnect: null, onDisconnect: null, onMessage: null, onError: null };
+            }
+
+            connect() {
+                return new Promise((resolve, reject) => {
+                    try {
+                        this.client = new Paho.Client(this.config.host, this.config.port, '/mqtt', this.config.clientId);
+                        this.client.onConnectionLost = (res) => this.handleConnectionLost(res);
+                        this.client.onMessageArrived = (msg) => this.handleMessageArrived(msg);
+
+                        this.client.connect({
+                            useSSL: this.config.useTLS,
+                            timeout: 10,
+                            keepAliveInterval: 60,
+                            cleanSession: this.config.cleansession,
+                            onSuccess: () => { this.handleConnectSuccess(); resolve(); },
+                            onFailure: (err) => { this.handleConnectFailure(err); reject(err); }
+                        });
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            disconnect() {
+                if (this.client && this.isConnected) {
+                    this.client.disconnect();
+                    this.isConnected = false;
+                    if (this.callbacks.onDisconnect) this.callbacks.onDisconnect();
+                }
+            }
+
+            subscribe(topic, qos = 0) {
+                if (this.isConnected) {
+                    this.client.subscribe(topic, { qos });
+                    console.log(`Subscribed: ${topic}`);
+                }
+            }
+
+            publish(topic, payload, qos = 0) {
+                if (this.isConnected) {
+                    const message = new Paho.Message(payload.toString());
+                    message.destinationName = topic;
+                    message.qos = qos;
+                    this.client.send(message);
+                    console.log(`Published to ${topic}: ${payload}`);
+                }
+            }
+
+            handleConnectSuccess() {
+                this.isConnected = true;
+                if (this.callbacks.onConnect) this.callbacks.onConnect();
+            }
+
+            handleConnectFailure(error) {
+                this.isConnected = false;
+                if (this.callbacks.onError) this.callbacks.onError(error);
+            }
+
+            handleConnectionLost(responseObject) {
+                this.isConnected = false;
+                if (this.callbacks.onDisconnect) this.callbacks.onDisconnect(responseObject);
+            }
+
+            handleMessageArrived(message) {
+                if (this.callbacks.onMessage) {
+                    this.callbacks.onMessage(message.destinationName, message.payloadString, message);
+                }
+            }
+
+            onConnect(cb) { this.callbacks.onConnect = cb; }
+            onDisconnect(cb) { this.callbacks.onDisconnect = cb; }
+            onMessage(cb) { this.callbacks.onMessage = cb; }
+            onError(cb) { this.callbacks.onError = cb; }
+        }
+
+        let mqttClient = null;
+        let isConnected = false;
+        let scheduleCheckInterval = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            addLog('Cat Feeder Dashboard initialized', 'info');
+            loadSchedules();
+        });
+
+        function toggleConnection() {
+            if (isConnected) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            const prefix = document.getElementById('uniquePrefix').value.trim();
+            if (!prefix) {
+                alert('Please enter a unique prefix!');
+                return;
+            }
+
+            config.uniquePrefix = prefix;
+            config.topics.foodLevel = `${prefix}/foodlevel`;
+            config.topics.feedNow = `${prefix}/feed`;
+            config.topics.portion = `${prefix}/portion`;
+            config.topics.bowlWeight = `${prefix}/bowlweight`;
+            config.topics.schedule = `${prefix}/schedule`;
+            config.topics.currentTime = `${prefix}/currenttime`;
+            config.clientId = `web_${prefix}_${Math.random().toString(16).substr(2, 8)}`;
+
+            addLog(`Connecting to ${config.host}...`, 'info');
+            mqttClient = new MQTTClient(config);
+
+            mqttClient.onConnect(() => {
+                isConnected = true;
+                updateStatus(true);
+                addLog('Connected successfully!', 'success');
+                
+                mqttClient.subscribe(config.topics.foodLevel);
+                mqttClient.subscribe(config.topics.bowlWeight);
+                
+                document.getElementById('clientInfo').textContent = config.clientId;
+                document.getElementById('feedBtn').disabled = false;
+                document.getElementById('addScheduleBtn').disabled = false;
+
+                syncSchedulesToESP32();
+                startScheduleChecker();
+            });
+
+            mqttClient.onDisconnect(() => {
+                isConnected = false;
+                updateStatus(false);
+                document.getElementById('feedBtn').disabled = true;
+                document.getElementById('addScheduleBtn').disabled = true;
+                stopScheduleChecker();
+            });
+
+            mqttClient.onMessage((topic, payload) => handleMessage(topic, payload));
+            mqttClient.onError((error) => addLog(`Error: ${error.errorMessage}`, 'error'));
+
+            mqttClient.connect().catch(err => addLog(`Connection failed`, 'error'));
+        }
+
+        function disconnect() {
+            if (mqttClient) {
+                mqttClient.disconnect();
+                updateStatus(false);
+                addLog('Disconnected', 'info');
+                stopScheduleChecker();
+            }
+        }
+
+        function handleMessage(topic, payload) {
+            if (topic === config.topics.foodLevel) {
+                document.getElementById('foodLevel').textContent = payload;
+                addLog(`Container: ${payload}%`, 'info');
+            } else if (topic === config.topics.bowlWeight) {
+                const weight = parseFloat(payload).toFixed(1);
+                document.getElementById('bowlWeight').textContent = weight;
+                addLog(`Bowl: ${weight}g`, 'success');
+            }
+        }
+
+        function feedNow() {
+            if (!isConnected) {
+                alert('Please connect to MQTT first!');
+                return;
+            }
+
+            const portion = document.getElementById('portionSlider').value;
+            mqttClient.publish(config.topics.feedNow, '1');
+            mqttClient.publish(config.topics.portion, portion);
+            addLog(`Feeding ${portion} portions`, 'success');
+        }
+
+        function updatePortion() {
+            const portion = document.getElementById('portionSlider').value;
+            document.getElementById('portionValue').textContent = portion;
+        }
+
+        function addSchedule() {
+            const time = document.getElementById('scheduleTime').value;
+            const portion = document.getElementById('schedulePortion').value;
+
+            if (!time) {
+                alert('Please select a time!');
+                return;
+            }
+
+            if (schedules.some(s => s.time === time)) {
+                alert('Schedule for this time already exists!');
+                return;
+            }
+
+            const schedule = { time, portion: parseInt(portion) };
+            schedules.push(schedule);
+            schedules.sort((a, b) => a.time.localeCompare(b.time));
+
+            saveSchedules();
+            renderSchedules();
+            syncSchedulesToESP32();
+            
+            addLog(`Schedule added: ${time} - ${portion} portions`, 'success');
+        }
+
+        function deleteSchedule(time) {
+            schedules = schedules.filter(s => s.time !== time);
+            saveSchedules();
+            renderSchedules();
+            syncSchedulesToESP32();
+            addLog(`Schedule deleted: ${time}`, 'warning');
+        }
+
+        function renderSchedules() {
+            const container = document.getElementById('scheduleList');
+            
+            if (schedules.length === 0) {
+                container.innerHTML = '<p class="empty-state">No schedules yet. Add one above!</p>';
+                return;
+            }
+
+            container.innerHTML = schedules.map(s => `
+                <div class="schedule-item">
+                    <div class="schedule-info">
+                        <div class="schedule-time">${s.time}</div>
+                        <div class="schedule-portion">${s.portion} portions</div>
+                    </div>
+                    <button class="btn-delete" onclick="deleteSchedule('${s.time}')">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        function saveSchedules() {
+            localStorage.setItem('catfeeder_schedules', JSON.stringify(schedules));
+        }
+
+        function loadSchedules() {
+            const saved = localStorage.getItem('catfeeder_schedules');
+            if (saved) {
+                schedules = JSON.parse(saved);
+                renderSchedules();
+            }
+        }
+
+        function syncSchedulesToESP32() {
+            if (!isConnected) return;
+            
+            const scheduleData = JSON.stringify(schedules);
+            mqttClient.publish(config.topics.schedule, scheduleData);
+            console.log('Schedules synced to ESP32');
+        }
+
+        function startScheduleChecker() {
+            scheduleCheckInterval = setInterval(checkSchedules, 30000);
+            checkSchedules();
+        }
+
+        function stopScheduleChecker() {
+            if (scheduleCheckInterval) {
+                clearInterval(scheduleCheckInterval);
+                scheduleCheckInterval = null;
+            }
+        }
+
+        function checkSchedules() {
+            const now = new Date();
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            if (isConnected) {
+                mqttClient.publish(`${config.uniquePrefix}/currenttime`, currentTime);
+            }
+
+            schedules.forEach(schedule => {
+                if (schedule.time === currentTime) {
+                    const lastExecuted = localStorage.getItem(`last_exec_${schedule.time}`);
+                    const currentMinute = now.getTime() / 60000;
+                    
+                    if (!lastExecuted || parseInt(lastExecuted) !== Math.floor(currentMinute)) {
+                        executeScheduledFeeding(schedule);
+                        localStorage.setItem(`last_exec_${schedule.time}`, Math.floor(currentMinute).toString());
+                    }
+                }
+            });
+        }
+
+        function executeScheduledFeeding(schedule) {
+            if (!isConnected) return;
+
+            mqttClient.publish(config.topics.feedNow, '1');
+            mqttClient.publish(config.topics.portion, schedule.portion.toString());
+            addLog(`Scheduled: ${schedule.time} - ${schedule.portion} portions`, 'warning');
+        }
+
+        function updateStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const btn = document.getElementById('connectBtn');
+
+            if (connected) {
+                dot.classList.add('connected');
+                text.classList.add('connected');
+                text.textContent = 'Connected';
+                btn.textContent = 'Disconnect';
+                btn.classList.add('btn-disconnect');
+                document.getElementById('uniquePrefix').disabled = true;
+            } else {
+                dot.classList.remove('connected');
+                text.classList.remove('connected');
+                text.textContent = 'Disconnected';
+                btn.textContent = 'Connect to MQTT';
+                btn.classList.remove('btn-disconnect');
+                document.getElementById('uniquePrefix').disabled = false;
+            }
+        }
+
+        function addLog(message, type = '') {
+            const container = document.getElementById('logMessages');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString('id-ID');
+            entry.innerHTML = `<span class="log-time">[${time}]</span>${message}`;
+            container.insertBefore(entry, container.firstChild);
+
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+    </script>
+</body>
+</html>
